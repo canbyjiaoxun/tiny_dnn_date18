@@ -41,8 +41,11 @@ inline void fully_connected_op_internal(const tensor_t &in_data,
                        
                     fprintf(op_MUL_file, "%f\t%f\n", W[c * params.out_size_ + i], in[c]);
                  }
-             }
-             out[i] += W[c * params.out_size_ + i] * in[c];
+             } 
+             //out[i] += W[c * params.out_size_ + i] * in[c]; //original formula 
+             //round to nearest 0.01; Xun 08/30/17
+             float temp_mul = (int)((W[c * params.out_size_ + i] * in[c])/0.01) * 0.01;
+             out[i] += temp_mul; 
            }
 
       if (params.has_bias_) {
