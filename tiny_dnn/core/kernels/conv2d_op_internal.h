@@ -111,7 +111,11 @@ inline void conv2d_op_internal(const tensor_t &in_data,
                            fprintf(op_MUL_file3, "%f\t%f\n", *ppw++, ppi[idx]);
                     }
                 }
-                sum += *ppw++ * ppi[idx];
+                // sum += *ppw++ * ppi[idx];   //original formula 
+                // round to nearest 0.01; Xun 08/30/17 
+                float temp_mul = (int)((*ppw++ * ppi[idx])/0.01) * 0.01;     //round to nearest one-hundredth
+                //printf("temp mul is %f\n",temp_mul);
+                sum += temp_mul;
               }
             }
             pa[y * params.out.width_ + x] += sum;
