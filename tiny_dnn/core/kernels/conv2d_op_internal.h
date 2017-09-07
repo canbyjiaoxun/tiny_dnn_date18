@@ -244,7 +244,10 @@ inline std::map<std::tuple<std::string, std::string>, float> BF3(){
 }
 
 //approximate bloom filter hit 
+int hit = 0; 
+int total = 0; 
 inline float check_BV(float op1, float op2, int layer) {
+    total ++; 
     float temp_mul; 
     std::map<std::tuple<std::string, std::string>, float> freq_pattern;
     if (layer == 1) 
@@ -259,6 +262,7 @@ inline float check_BV(float op1, float op2, int layer) {
     //std::cout << "op2: " << op2 << " " << op2_str.substr(0,13) << std::endl; 
     if (freq_pattern.find(std::make_tuple(op1_str.substr(0,13), op2_str.substr(0,13))) != freq_pattern.end())
     {
+       hit ++; 
        //std::cout << "Hit " << op1 << op2 << std::endl; 
        temp_mul = freq_pattern[std::make_tuple(op1_str.substr(0,13), op2_str.substr(0,13))];
        //std::cout << "Hit: " << temp_mul << std::endl;
@@ -279,6 +283,8 @@ inline void conv2d_op_internal(const tensor_t &in_data,
                                const bool parallelize) {
   conv_count ++; 
   std::cout << "conv count: " << conv_count << std::endl; 
+  //std::cout << "total op: " << total << std::endl; 
+  //std::cout << "hit op: "   << hit << std::endl; 
   //initialize profile file 
   FILE *op_MUL_file1 = fopen("./operands/conv2d_MUL_op_layer1_CNN","a");
   FILE *op_MUL_file2 = fopen("./operands/conv2d_MUL_op_layer2_CNN","a");
@@ -317,26 +323,30 @@ inline void conv2d_op_internal(const tensor_t &in_data,
               for (serial_size_t wx = 0; wx < params.weight.width_;
                    wx++) {  // NOLINT
                 idx = wy * params.in_padded.width_ + wx;
-                //profile MUL operands; Xun 08/24/17 
+                float temp_ppw = *ppw++;   //add a temp variable for pointer-based value
+                sum += temp_ppw * ppi[idx]; 
+                //sum += *ppw++ * ppi[idx];   //original formula 
+              
+                //profile MUL operands; Xun 09/06/17 
                 if (PROFILE == true)
                 {
-                    //profile layer-based operands; Xun 08/24/17
+                    //profile layer-based operands; Xun 09/06/17
                     if (conv_count < PROF_IMAGE * 3)   //only profile PROF_IMAGE images
                     {
                         if (conv_count % 3 == 1)
-                           fprintf(op_MUL_file1, "%f\t%f\n", *ppw++, ppi[idx]);
+                           fprintf(op_MUL_file1, "%f\t%f\n", temp_ppw, ppi[idx]);
                         if (conv_count % 3 == 2)
-                           fprintf(op_MUL_file2, "%f\t%f\n", *ppw++, ppi[idx]);
+                           fprintf(op_MUL_file2, "%f\t%f\n", temp_ppw, ppi[idx]);
                         if (conv_count % 3 == 0)
-                           fprintf(op_MUL_file3, "%f\t%f\n", *ppw++, ppi[idx]);
+                           fprintf(op_MUL_file3, "%f\t%f\n", temp_ppw, ppi[idx]);
                     }
                 }
-                // sum += *ppw++ * ppi[idx];   //original formula 
+                
                 // round to nearest 0.01; Xun 08/30/17 
-                //float temp_mul = (int)((*ppw++ * ppi[idx])/0.1) * 0.1;     //round to nearest one-hundredth
-                temp_mul = check_BV(*ppw++, ppi[idx], conv_count % 3);
+                //float temp_mul = (int)((*ppw++ * ppi[idx])/0.01) * 0.01;     //round to nearest one-hundredth
+                //temp_mul = check_BV(*ppw++, ppi[idx], conv_count % 3);
                 //std::cout << "temp_mul: " << temp_mul << std::endl; 
-                sum += temp_mul;
+                //sum += temp_mul;
               }
             }
             pa[y * params.out.width_ + x] += sum;
